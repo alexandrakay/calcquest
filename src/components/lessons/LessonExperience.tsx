@@ -2,7 +2,22 @@
 
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import PlayLessonRoundedIcon from '@mui/icons-material/PlayLessonRounded';
-import { Alert, Box, Button, Card, CardContent, Chip, Grid, Stack, TextField, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  FormControl,
+  FormControlLabel,
+  Grid,
+  Radio,
+  RadioGroup,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { useMemo, useState } from 'react';
 
 import { CompositionPipelineBuilder } from '@/components/lessons/CompositionPipelineBuilder';
@@ -129,16 +144,46 @@ export const LessonExperience = ({ lesson }: { lesson: Lesson }) => {
               {primaryChallenge ? (
                 <>
                   <Typography fontWeight={700}>{primaryChallenge.prompt}</Typography>
-                  <TextField
-                    label="Your answer"
-                    value={answer}
-                    onChange={(event) => setAnswer(event.target.value)}
-                    fullWidth
-                  />
+                  {primaryChallenge.type === 'multiple-choice' && primaryChallenge.choices?.length ? (
+                    <FormControl component="fieldset">
+                      <RadioGroup
+                        aria-label={primaryChallenge.prompt}
+                        name={primaryChallenge.id}
+                        value={answer}
+                        onChange={(event) => setAnswer(event.target.value)}
+                      >
+                        {primaryChallenge.choices.map((choice) => (
+                          <FormControlLabel
+                            key={choice}
+                            value={choice}
+                            control={<Radio />}
+                            label={choice}
+                            sx={{
+                              mx: 0,
+                              my: 0.25,
+                              px: 1.5,
+                              py: 1,
+                              borderRadius: 3,
+                              border: '1px solid rgba(255,255,255,0.08)',
+                              backgroundColor: 'rgba(255,255,255,0.02)',
+                            }}
+                          />
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                  ) : (
+                    <TextField
+                      label="Your answer"
+                      value={answer}
+                      onChange={(event) => setAnswer(event.target.value)}
+                      fullWidth
+                    />
+                  )}
                   <Button
                     variant="contained"
                     startIcon={<PlayLessonRoundedIcon />}
                     onClick={() => void submitChallenge()}
+                    disabled={!answer.trim()}
                   >
                     Submit challenge
                   </Button>
