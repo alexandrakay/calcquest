@@ -36,6 +36,7 @@ export const CompositionPipelineBuilder = ({
   const [selectedOrderLabel, setSelectedOrderLabel] = useState(orderOptions[0]!.label);
   const [guess, setGuess] = useState('');
   const [hintIndex, setHintIndex] = useState(0);
+  const [hasCheckedAnswer, setHasCheckedAnswer] = useState(false);
   const selectedOrder = orderOptions.find((option) => option.label === selectedOrderLabel) ?? orderOptions[0]!;
 
   const result = useMemo(
@@ -46,6 +47,7 @@ export const CompositionPipelineBuilder = ({
   const isCorrect = Number(guess) === result.finalValue && !result.isDomainError;
 
   const submit = () => {
+    setHasCheckedAnswer(true);
     onSolved?.(isCorrect);
     if (!isCorrect) {
       setHintIndex((index) => Math.min(index + 1, 1));
@@ -67,7 +69,10 @@ export const CompositionPipelineBuilder = ({
             select
             label="Function order"
             value={selectedOrderLabel}
-            onChange={(event) => setSelectedOrderLabel(event.target.value)}
+            onChange={(event) => {
+              setSelectedOrderLabel(event.target.value);
+              setHasCheckedAnswer(false);
+            }}
             fullWidth
           >
             {orderOptions.map((option) => (
@@ -81,7 +86,10 @@ export const CompositionPipelineBuilder = ({
             label="Input x"
             type="number"
             value={inputValue}
-            onChange={(event) => setInputValue(Number(event.target.value))}
+            onChange={(event) => {
+              setInputValue(Number(event.target.value));
+              setHasCheckedAnswer(false);
+            }}
             fullWidth
           />
         </Stack>
@@ -107,7 +115,9 @@ export const CompositionPipelineBuilder = ({
                 </Typography>
                 <Typography variant="h6">{fn.label}</Typography>
                 <Typography color="text.secondary">
-                  {step ? `Input ${step.input} -> Output ${Number.isNaN(step.output) ? 'Domain error' : step.output}` : 'Waiting for input'}
+                  {hasCheckedAnswer && step
+                    ? `Input ${step.input} -> Output ${Number.isNaN(step.output) ? 'Domain error' : step.output}`
+                    : 'Output hidden until you check your answer'}
                 </Typography>
               </Box>
             );
@@ -117,7 +127,10 @@ export const CompositionPipelineBuilder = ({
         <TextField
           label="Your predicted output"
           value={guess}
-          onChange={(event) => setGuess(event.target.value)}
+          onChange={(event) => {
+            setGuess(event.target.value);
+            setHasCheckedAnswer(false);
+          }}
           fullWidth
         />
 
@@ -133,19 +146,20 @@ export const CompositionPipelineBuilder = ({
               setSelectedOrderLabel(orderOptions[0]!.label);
               setGuess('');
               setHintIndex(0);
+              setHasCheckedAnswer(false);
             }}
           >
             Reset puzzle
           </Button>
         </Stack>
 
-        {result.isDomainError ? (
+        {hasCheckedAnswer && result.isDomainError ? (
           <Alert severity="warning" icon={<ErrorRoundedIcon />}>
             This pipeline hits a domain error. That means one function received an input it cannot handle.
           </Alert>
         ) : null}
 
-        {guess ? (
+        {hasCheckedAnswer && guess ? (
           isCorrect ? (
             <Alert severity="success" icon={<CheckCircleRoundedIcon />}>
               Nice work. You respected the order of operations and the pipeline returns {result.finalValue}.
