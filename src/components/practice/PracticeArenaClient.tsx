@@ -50,9 +50,12 @@ export const PracticeArenaClient = () => {
   const [answer, setAnswer] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [correct, setCorrect] = useState<boolean | null>(null);
+  const [attempts, setAttempts] = useState(0);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
 
   const practicePool = useMemo(() => buildPracticePool(selectedWorldId), [selectedWorldId]);
   const currentEntry = practicePool[challengeIndex % Math.max(practicePool.length, 1)];
+  const accuracy = attempts === 0 ? 0 : Math.round((correctAnswers / attempts) * 100);
 
   const submitAnswer = () => {
     if (!currentEntry) {
@@ -65,12 +68,27 @@ export const PracticeArenaClient = () => {
         ? Number(answer) === challenge.correctAnswer
         : answer.trim().toLowerCase() === String(challenge.correctAnswer).trim().toLowerCase();
 
+    setAttempts((value) => value + 1);
+    if (isCorrect) {
+      setCorrectAnswers((value) => value + 1);
+    }
     setCorrect(isCorrect);
     setFeedback(isCorrect ? challenge.explanation : challenge.hints[0] ?? 'Try one smaller step.');
   };
 
   const nextChallenge = () => {
-    setChallengeIndex((index) => index + 1);
+    if (practicePool.length > 1) {
+      let nextIndex = challengeIndex;
+
+      while (nextIndex === challengeIndex) {
+        nextIndex = Math.floor(Math.random() * practicePool.length);
+      }
+
+      setChallengeIndex(nextIndex);
+    } else {
+      setChallengeIndex(0);
+    }
+
     setAnswer('');
     setFeedback(null);
     setCorrect(null);
@@ -90,6 +108,12 @@ export const PracticeArenaClient = () => {
             </Typography>
           </div>
 
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Chip label={`session attempts: ${attempts}`} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} />
+            <Chip label={`correct: ${correctAnswers}`} sx={{ bgcolor: 'rgba(90,242,201,0.12)' }} />
+            <Chip label={`accuracy: ${accuracy}%`} sx={{ bgcolor: 'rgba(130,170,255,0.12)' }} />
+          </Stack>
+
           <TextField
             select
             label="Practice topic"
@@ -100,6 +124,8 @@ export const PracticeArenaClient = () => {
               setAnswer('');
               setFeedback(null);
               setCorrect(null);
+              setAttempts(0);
+              setCorrectAnswers(0);
             }}
             fullWidth
           >
@@ -161,7 +187,7 @@ export const PracticeArenaClient = () => {
                 Check answer
               </Button>
               <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={nextChallenge}>
-                Next challenge
+                Random next challenge
               </Button>
             </Stack>
 
