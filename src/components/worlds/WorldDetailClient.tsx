@@ -3,6 +3,7 @@
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import { Alert, Container, Stack, Typography } from '@mui/material';
 
+import { AIWorldPracticePanel } from '@/components/worlds/AIWorldPracticePanel';
 import { LessonCard } from '@/components/game/LessonCard';
 import type { CourseWorld } from '@/types/course';
 import { useUserProgress } from '@/hooks/useUserProgress';
@@ -41,6 +42,8 @@ export const WorldDetailClient = ({ world }: { world: CourseWorld }) => {
             status={unlocked ? snapshot.lessonProgress[lesson.id]?.status ?? 'available' : 'locked'}
           />
         ))}
+
+        {unlocked ? <AIWorldPracticePanel world={world} /> : null}
       </Stack>
     </Container>
   );

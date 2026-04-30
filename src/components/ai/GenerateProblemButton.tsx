@@ -9,14 +9,18 @@ import type { WorldId } from '@/types/course';
 
 export const GenerateProblemButton = ({
   worldId,
+  lessonId,
   topic,
   onGenerated,
   onError,
+  buttonLabel = 'Generate AI problem',
 }: {
   worldId: WorldId;
+  lessonId?: string;
   topic: string;
   onGenerated: (problem: AIGeneratedProblem) => void;
   onError: (message: string) => void;
+  buttonLabel?: string;
 }) => {
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
   const [questionType, setQuestionType] =
@@ -35,6 +39,7 @@ export const GenerateProblemButton = ({
         },
         body: JSON.stringify({
           worldId,
+          lessonId,
           topic,
           difficulty,
           questionType,
@@ -82,7 +87,7 @@ export const GenerateProblemButton = ({
         onClick={() => void generate()}
         disabled={loading}
       >
-        {loading ? 'Generating...' : 'Generate AI problem'}
+        {loading ? 'Generating...' : buttonLabel}
       </Button>
     </Stack>
   );
