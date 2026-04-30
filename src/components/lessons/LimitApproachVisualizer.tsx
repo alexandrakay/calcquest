@@ -1,50 +1,73 @@
 'use client';
 
 import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
-import { Box, Card, CardContent, Chip, Slider, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, Chip, MenuItem, Slider, Stack, TextField, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';
 
 const TARGET_X = 2;
-const CENTER_Y = 4;
 const GRAPH_WIDTH = 520;
 const GRAPH_HEIGHT = 260;
-
-const evaluateLimitFunction = (x: number) => x + 2;
 
 const xToSvg = (x: number) => ((x + 1) / 6) * GRAPH_WIDTH;
 const yToSvg = (y: number) => GRAPH_HEIGHT - ((y - 0) / 8) * GRAPH_HEIGHT;
 
 const steps = [1, 0.5, 0.1, 0.01];
 
+const scenarios = {
+  hole: {
+    id: 'hole',
+    label: 'Hole in the graph',
+    description: 'The function has a missing point, but both sides approach the same y-value.',
+    evaluate: (x: number) => x + 2,
+    holeY: 4,
+    explainAgreement:
+      'Both sides are settling near 4, so the two-sided limit exists even though the point at x = 2 is missing.',
+  },
+  jump: {
+    id: 'jump',
+    label: 'Jump mismatch',
+    description: 'The left side and right side approach different y-values, so the limit does not exist.',
+    evaluate: (x: number) => (x < TARGET_X ? 3 : 5),
+    holeY: null,
+    explainAgreement:
+      'The two sides are heading to different values, so the two-sided limit does not exist at x = 2.',
+  },
+} as const;
+
+type ScenarioKey = keyof typeof scenarios;
+
 export const LimitApproachVisualizer = () => {
+  const [scenarioKey, setScenarioKey] = useState<ScenarioKey>('hole');
   const [leftStepIndex, setLeftStepIndex] = useState(1);
   const [rightStepIndex, setRightStepIndex] = useState(1);
 
+  const scenario = scenarios[scenarioKey];
   const leftDistance = steps[leftStepIndex] ?? steps[1]!;
   const rightDistance = steps[rightStepIndex] ?? steps[1]!;
   const leftX = TARGET_X - leftDistance;
   const rightX = TARGET_X + rightDistance;
-  const leftY = evaluateLimitFunction(leftX);
-  const rightY = evaluateLimitFunction(rightX);
+  const leftY = scenario.evaluate(leftX);
+  const rightY = scenario.evaluate(rightX);
 
   const graphPoints = useMemo(() => {
     const values: string[] = [];
 
     for (let x = -1; x <= 5; x += 0.08) {
-      if (Math.abs(x - TARGET_X) < 0.03) {
+      if (scenarioKey === 'hole' && Math.abs(x - TARGET_X) < 0.03) {
         continue;
       }
 
-      values.push(`${xToSvg(x)},${yToSvg(evaluateLimitFunction(x))}`);
+      values.push(`${xToSvg(x)},${yToSvg(scenario.evaluate(x))}`);
     }
 
     return values.join(' ');
-  }, []);
+  }, [scenario, scenarioKey]);
 
-  const conclusion =
-    Math.abs(leftY - rightY) < 0.05
-      ? `Both sides are settling near ${CENTER_Y}, so the two-sided limit exists and equals ${CENTER_Y}.`
-      : 'The two sides are not agreeing yet, so keep moving closer to compare the trend.';
+  const doSidesAgree = Math.abs(leftY - rightY) < 0.05;
+
+  const conclusion = doSidesAgree
+    ? `Both sides are settling near ${leftY.toFixed(2)}, so the two-sided limit exists.`
+    : 'The left-hand and right-hand values do not agree, so the two-sided limit does not exist.';
 
   return (
     <Card>
@@ -55,6 +78,22 @@ export const LimitApproachVisualizer = () => {
             Move in from the left and right toward x = 2. Watch how the nearby outputs behave, even though the graph has a hole there.
           </Typography>
         </div>
+
+        <TextField
+          select
+          label="Scenario"
+          value={scenarioKey}
+          onChange={(event) => setScenarioKey(event.target.value as ScenarioKey)}
+          fullWidth
+        >
+          {Object.values(scenarios).map((entry) => (
+            <MenuItem key={entry.id} value={entry.id}>
+              {entry.label}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <Typography color="text.secondary">{scenario.description}</Typography>
 
         <Box
           sx={{
@@ -82,19 +121,27 @@ export const LimitApproachVisualizer = () => {
               strokeLinecap="round"
               points={graphPoints}
             />
-            <circle
-              cx={xToSvg(TARGET_X)}
-              cy={yToSvg(CENTER_Y)}
-              r="8"
-              fill="#08111f"
-              stroke="#f4f8ff"
-              strokeWidth="3"
-            />
+            {scenario.holeY !== null ? (
+              <circle
+                cx={xToSvg(TARGET_X)}
+                cy={yToSvg(scenario.holeY)}
+                r="8"
+                fill="#08111f"
+                stroke="#f4f8ff"
+                strokeWidth="3"
+              />
+            ) : null}
             <circle cx={xToSvg(leftX)} cy={yToSvg(leftY)} r="6" fill="#5af2c9" />
             <circle cx={xToSvg(rightX)} cy={yToSvg(rightY)} r="6" fill="#ffb54d" />
-            <text x={xToSvg(TARGET_X) + 10} y={yToSvg(CENTER_Y) - 12} fill="#f4f8ff" fontSize="13">
-              hole at (2, 4)
-            </text>
+            {scenario.holeY !== null ? (
+              <text x={xToSvg(TARGET_X) + 10} y={yToSvg(scenario.holeY) - 12} fill="#f4f8ff" fontSize="13">
+                hole at (2, 4)
+              </text>
+            ) : (
+              <text x={xToSvg(TARGET_X) + 10} y={yToSvg(5) - 12} fill="#f4f8ff" fontSize="13">
+                left side to 3, right side to 5
+              </text>
+            )}
           </svg>
         </Box>
 
@@ -155,7 +202,7 @@ export const LimitApproachVisualizer = () => {
             <Typography variant="subtitle1">What this means</Typography>
           </Stack>
           <Typography color="text.secondary">
-            As x gets closer to 2 from both sides, the outputs get closer to 4. That nearby behavior is the limit, even though the exact point at x = 2 is missing on the graph.
+            {scenario.explainAgreement}
           </Typography>
           <Typography sx={{ mt: 1.5, fontWeight: 700 }}>{conclusion}</Typography>
         </Box>
