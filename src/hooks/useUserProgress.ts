@@ -38,6 +38,8 @@ export const useUserProgress = () => {
   const { user } = useAuth();
   const [snapshot, setSnapshot] = useState<ProgressSnapshot>(defaultSnapshot);
   const [loading, setLoading] = useState(true);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState<'cloud' | 'local' | 'guest'>('guest');
 
   useEffect(() => {
     const sync = async () => {
@@ -45,6 +47,8 @@ export const useUserProgress = () => {
 
       if (!user) {
         setSnapshot(local);
+        setSyncState('guest');
+        setSyncMessage('You are in guest mode. Progress is being saved on this device only until you sign in.');
         setLoading(false);
         return;
       }
@@ -52,12 +56,24 @@ export const useUserProgress = () => {
       const remote = await loadProgressFromFirestore(user.uid);
       const merged = {
         ...local,
-        ...remote,
+        ...remote.data,
         lessonProgress: {
           ...local.lessonProgress,
-          ...remote.lessonProgress,
+          ...remote.data.lessonProgress,
         },
       };
+
+      if (remote.errorCode === 'permission-denied') {
+        setSyncState('local');
+        setSyncMessage('Cloud sync is unavailable because Firestore permissions are not configured yet. Progress is being saved locally for now.');
+      } else if (remote.errorCode) {
+        setSyncState('local');
+        setSyncMessage('Cloud sync is temporarily unavailable. Progress is still being saved locally on this device.');
+      } else {
+        setSyncState('cloud');
+        setSyncMessage('Cloud sync is active. Your progress is connected to your signed-in account.');
+      }
+
       localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
       setSnapshot(merged);
       setLoading(false);
@@ -115,7 +131,18 @@ export const useUserProgress = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSnapshot));
 
     if (user) {
-      await saveLessonProgressToFirestore(user.uid, next, totalXp);
+      const saveResult = await saveLessonProgressToFirestore(user.uid, next, totalXp);
+
+      if (saveResult.errorCode === 'permission-denied') {
+        setSyncState('local');
+        setSyncMessage('Progress was saved locally, but Firestore denied cloud sync. Check your Firebase rules to enable account-based saving.');
+      } else if (saveResult.errorCode) {
+        setSyncState('local');
+        setSyncMessage('Progress was saved locally, but cloud sync is temporarily unavailable.');
+      } else {
+        setSyncState('cloud');
+        setSyncMessage('Cloud sync is active. Your progress is connected to your signed-in account.');
+      }
     }
   };
 
@@ -140,5 +167,7 @@ export const useUserProgress = () => {
     loading,
     upsertProgress,
     worldProgress,
+    syncMessage,
+    syncState,
   };
 };

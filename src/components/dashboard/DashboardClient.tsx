@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { MasteryMeter } from '@/components/game/MasteryMeter';
 import { StreakBadge } from '@/components/game/StreakBadge';
 import { WorldCard } from '@/components/game/WorldCard';
+import { SyncStatusCard } from '@/components/ui/SyncStatusCard';
 import { courseWorlds } from '@/data/courseMap';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProgress } from '@/hooks/useUserProgress';
@@ -19,7 +20,7 @@ import { getWorldStatus } from '@/lib/progress/unlock';
 export const DashboardClient = () => {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { snapshot, loading: progressLoading, worldProgress } = useUserProgress();
+  const { snapshot, loading: progressLoading, worldProgress, syncMessage, syncState } = useUserProgress();
 
   const nextLesson = useMemo(() => {
     for (const world of courseWorlds) {
@@ -68,6 +69,8 @@ export const DashboardClient = () => {
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
       <Stack spacing={4}>
+        <SyncStatusCard syncState={syncState} message={syncMessage} />
+
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 7 }}>
             <Card sx={{ overflow: 'hidden' }}>
