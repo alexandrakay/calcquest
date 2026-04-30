@@ -3,7 +3,7 @@
 import TrendingFlatRoundedIcon from '@mui/icons-material/TrendingFlatRounded';
 import TrendingDownRoundedIcon from '@mui/icons-material/TrendingDownRounded';
 import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded';
-import { Box, Card, CardContent, Chip, Slider, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, Chip, MenuItem, Slider, Stack, TextField, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';
 
 const GRAPH_WIDTH = 520;
@@ -12,8 +12,26 @@ const DOMAIN_MIN = -3;
 const DOMAIN_MAX = 3;
 const SAMPLE_STEP = 0.08;
 
-const curve = (x: number) => x ** 2 - 1;
-const derivative = (x: number) => 2 * x;
+const scenarios = {
+  parabola: {
+    id: 'parabola',
+    label: 'Parabola',
+    description: 'This smooth U-shape has a flat tangent at the bottom and positive or negative slopes on either side.',
+    curve: (x: number) => x ** 2 - 1,
+    derivative: (x: number) => 2 * x,
+    stroke: '#ff8a65',
+  },
+  cubic: {
+    id: 'cubic',
+    label: 'Cubic wave',
+    description: 'This curve bends through the center so you can see slope change from positive to nearly flat and back again.',
+    curve: (x: number) => (x ** 3) / 3 - x,
+    derivative: (x: number) => x ** 2 - 1,
+    stroke: '#82aaff',
+  },
+} as const;
+
+type ScenarioKey = keyof typeof scenarios;
 
 const xToSvg = (x: number) => ((x - DOMAIN_MIN) / (DOMAIN_MAX - DOMAIN_MIN)) * GRAPH_WIDTH;
 const yToSvg = (y: number) => GRAPH_HEIGHT - ((y + 2) / 8) * GRAPH_HEIGHT;
@@ -27,21 +45,23 @@ const getSlopeLabel = (slope: number) => {
 };
 
 export const TangentLineExplorer = () => {
+  const [scenarioKey, setScenarioKey] = useState<ScenarioKey>('parabola');
   const [xValue, setXValue] = useState(1.5);
+  const scenario = scenarios[scenarioKey];
 
-  const yValue = curve(xValue);
-  const slope = derivative(xValue);
+  const yValue = scenario.curve(xValue);
+  const slope = scenario.derivative(xValue);
   const slopeLabel = getSlopeLabel(slope);
 
   const curvePoints = useMemo(() => {
     const points: string[] = [];
 
     for (let x = DOMAIN_MIN; x <= DOMAIN_MAX; x += SAMPLE_STEP) {
-      points.push(`${xToSvg(x)},${yToSvg(curve(x))}`);
+      points.push(`${xToSvg(x)},${yToSvg(scenario.curve(x))}`);
     }
 
     return points.join(' ');
-  }, []);
+  }, [scenario]);
 
   const tangentLine = useMemo(() => {
     const x1 = DOMAIN_MIN;
@@ -74,6 +94,22 @@ export const TangentLineExplorer = () => {
           </Typography>
         </div>
 
+        <TextField
+          select
+          label="Curve scenario"
+          value={scenarioKey}
+          onChange={(event) => setScenarioKey(event.target.value as ScenarioKey)}
+          fullWidth
+        >
+          {Object.values(scenarios).map((entry) => (
+            <MenuItem key={entry.id} value={entry.id}>
+              {entry.label}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <Typography color="text.secondary">{scenario.description}</Typography>
+
         <Box
           sx={{
             borderRadius: 4,
@@ -94,7 +130,7 @@ export const TangentLineExplorer = () => {
             <line x1={xToSvg(0)} y1="0" x2={xToSvg(0)} y2={GRAPH_HEIGHT} stroke="rgba(255,255,255,0.22)" />
             <polyline
               fill="none"
-              stroke="#ff8a65"
+              stroke={scenario.stroke}
               strokeWidth="4"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -135,6 +171,7 @@ export const TangentLineExplorer = () => {
         </Box>
 
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Chip label={scenario.label} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} />
           <Chip label={`x = ${xValue.toFixed(1)}`} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} />
           <Chip label={`f(x) = ${yValue.toFixed(2)}`} sx={{ bgcolor: 'rgba(255,138,101,0.12)' }} />
           <Chip label={`slope ≈ ${slope.toFixed(2)}`} sx={{ bgcolor: 'rgba(90,242,201,0.12)' }} />
