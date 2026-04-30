@@ -10,6 +10,7 @@ export const aiGeneratedProblemSchema = {
       'difficulty',
       'type',
       'prompt',
+      'choices',
       'correctAnswer',
       'solutionSteps',
       'explanation',
