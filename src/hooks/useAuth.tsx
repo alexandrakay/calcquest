@@ -39,6 +39,14 @@ const mapFirebaseUser = (user: User): AppUser => ({
   photoURL: user.photoURL,
 });
 
+const debugAuthState = (message: string, details?: Record<string, unknown>) => {
+  if (typeof window === 'undefined' || process.env.NODE_ENV !== 'production') {
+    return;
+  }
+
+  console.info('[CalcQuest auth]', message, details ?? {});
+};
+
 const isDemoUser = (user: AppUser | User): user is AppUser => 'isDemo' in user;
 const isGoogleRedirectResult = (
   value: AppUser | { user: User; mode: 'popup' } | { user: null; mode: 'redirect' },
@@ -50,16 +58,23 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
+      debugAuthState('Firebase not configured, using stored demo user fallback.');
       setUser(getStoredDemoUser());
       setLoading(false);
       return;
     }
 
-    void resolveGoogleRedirectSignIn().catch(() => {
-      // Redirect errors are surfaced through the normal login UI on the next auth attempt.
+    void resolveGoogleRedirectSignIn().catch((error) => {
+      debugAuthState('Google redirect resolution failed.', {
+        error: error instanceof Error ? error.message : 'unknown',
+      });
     });
 
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      debugAuthState('Auth state changed.', {
+        authenticated: Boolean(nextUser),
+        uid: nextUser?.uid ?? null,
+      });
       setUser(nextUser ? mapFirebaseUser(nextUser) : null);
       setLoading(false);
     });

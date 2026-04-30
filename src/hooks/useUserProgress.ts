@@ -39,18 +39,36 @@ const readLocalProgress = (): ProgressSnapshot => {
 };
 
 export const useUserProgress = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [snapshot, setSnapshot] = useState<ProgressSnapshot>(defaultSnapshot);
   const [loading, setLoading] = useState(true);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<'cloud' | 'local' | 'guest'>('guest');
 
+  const debugProgressState = (message: string, details?: Record<string, unknown>) => {
+    if (typeof window === 'undefined' || process.env.NODE_ENV !== 'production') {
+      return;
+    }
+
+    console.info('[CalcQuest progress]', message, details ?? {});
+  };
+
   useEffect(() => {
     const sync = async () => {
+      if (authLoading) {
+        debugProgressState('Waiting for auth to resolve before hydrating progress.');
+        return;
+      }
+
+      setLoading(true);
+
       try {
         const local = readLocalProgress();
 
         if (!user) {
+          debugProgressState('No authenticated user. Falling back to guest/local progress.', {
+            localLessonCount: Object.keys(local.lessonProgress).length,
+          });
           setSnapshot(local);
           setSyncState('guest');
           setSyncMessage('You are in guest mode. Progress is being saved on this device only until you sign in.');
@@ -67,6 +85,13 @@ export const useUserProgress = () => {
           },
         };
 
+        debugProgressState('Hydrated progress for authenticated user.', {
+          uid: user.uid,
+          remoteErrorCode: remote.errorCode ?? null,
+          localLessonCount: Object.keys(local.lessonProgress).length,
+          mergedLessonCount: Object.keys(merged.lessonProgress).length,
+        });
+
         if (remote.errorCode === 'permission-denied') {
           setSyncState('local');
           setSyncMessage('Cloud sync is unavailable because Firestore permissions are not configured yet. Progress is being saved locally for now.');
@@ -81,6 +106,9 @@ export const useUserProgress = () => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
         setSnapshot(merged);
       } catch {
+        debugProgressState('Progress hydration hit an unexpected error and is falling back.', {
+          authenticated: Boolean(user),
+        });
         setSnapshot(defaultSnapshot);
         setSyncState(user ? 'local' : 'guest');
         setSyncMessage(
@@ -94,7 +122,7 @@ export const useUserProgress = () => {
     };
 
     void sync();
-  }, [user]);
+  }, [authLoading, user]);
 
   const upsertProgress = async (lesson: Lesson, isCorrect: boolean, earnedXp: number) => {
     const current = snapshot.lessonProgress[lesson.id] ?? {
