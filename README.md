@@ -1,6 +1,6 @@
 # CalcQuest
 
-CalcQuest is a gamified calculus learning app built for WGU calculus students who want something more interactive than a static textbook platform. The MVP blends short lessons, developer-friendly analogies, world-based progression, and interactive calculus tools.
+CalcQuest is a gamified calculus learning app for people who need a math refresher or are just learning calculus and want something more interactive than a static textbook platform. The current MVP focuses on basic calculus concepts, short lessons, developer-friendly analogies, world-based progression, and interactive math tools so learners can refresh fundamentals and test the app experience.
 
 ## Stack
 
@@ -88,4 +88,4 @@ src/
 
 ## Status
 
-This repository currently contains the initial MVP scaffold and first playable learning flow for CalcQuest.
+This repository currently contains the initial MVP scaffold and first playable learning flow for CalcQuest. Right now it is centered on basic calculus for learners who want a refresher or a starting point, with a longer-term plan to expand the platform into more advanced mathematics.
