@@ -22,12 +22,13 @@ import { useMemo, useState } from 'react';
 
 import { CompositionPipelineBuilder } from '@/components/lessons/CompositionPipelineBuilder';
 import { XpBadge } from '@/components/game/XpBadge';
+import { SyncStatusCard } from '@/components/ui/SyncStatusCard';
 import { useUserProgress } from '@/hooks/useUserProgress';
 import { getChallengeXp } from '@/lib/progress/xp';
 import type { Lesson } from '@/types/course';
 
 export const LessonExperience = ({ lesson }: { lesson: Lesson }) => {
-  const { snapshot, upsertProgress } = useUserProgress();
+  const { snapshot, upsertProgress, syncMessage, syncState } = useUserProgress();
   const [answer, setAnswer] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [correct, setCorrect] = useState<boolean | null>(null);
@@ -62,6 +63,8 @@ export const LessonExperience = ({ lesson }: { lesson: Lesson }) => {
     <Grid container spacing={3}>
       <Grid size={{ xs: 12, lg: 7 }}>
         <Stack spacing={3}>
+          <SyncStatusCard syncState={syncState} message={syncMessage} />
+
           <Card>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
               <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -202,7 +205,9 @@ export const LessonExperience = ({ lesson }: { lesson: Lesson }) => {
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               <Typography variant="h6">Lesson status</Typography>
               <Typography sx={{ textTransform: 'capitalize' }}>{lessonStatus.replace('-', ' ')}</Typography>
-              <Typography color="text.secondary">Progress is stored locally now and syncs to Firestore when configured.</Typography>
+              <Typography color="text.secondary">
+                Your mastery updates immediately here and stays aligned with the current sync mode shown above.
+              </Typography>
             </CardContent>
           </Card>
         </Stack>
