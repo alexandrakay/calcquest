@@ -1,4 +1,5 @@
 import { courseWorlds } from '@/data/courseMap';
+import type { Lesson } from '@/types/course';
 import type { LessonProgress, LessonStatus } from '@/types/progress';
 import type { WorldId } from '@/types/course';
 
@@ -56,4 +57,33 @@ export const getWorldStatus = (
   }
 
   return 'available';
+};
+
+export const getNextRecommendedLesson = (
+  lessonProgress: Record<string, LessonProgress>,
+  currentLessonId?: string,
+): Lesson | null => {
+  const orderedLessons = courseWorlds.flatMap((world) => world.lessons);
+  const currentLessonIndex = currentLessonId
+    ? orderedLessons.findIndex((lesson) => lesson.id === currentLessonId)
+    : -1;
+
+  const findIncompleteLesson = (lessons: Lesson[]) =>
+    lessons.find((lesson) => {
+      if (!isWorldUnlocked(lesson.worldId, lessonProgress)) {
+        return false;
+      }
+
+      const status = lessonProgress[lesson.id]?.status;
+      return status !== 'completed' && status !== 'mastered';
+    }) ?? null;
+
+  if (currentLessonIndex >= 0) {
+    const lessonAfterCurrent = findIncompleteLesson(orderedLessons.slice(currentLessonIndex + 1));
+    if (lessonAfterCurrent) {
+      return lessonAfterCurrent;
+    }
+  }
+
+  return findIncompleteLesson(orderedLessons);
 };

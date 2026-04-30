@@ -18,6 +18,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { CompositionPipelineBuilder } from '@/components/lessons/CompositionPipelineBuilder';
@@ -27,6 +28,8 @@ import { AreaUnderCurveVisualizer } from '@/components/lessons/AreaUnderCurveVis
 import { XpBadge } from '@/components/game/XpBadge';
 import { SyncStatusCard } from '@/components/ui/SyncStatusCard';
 import { useUserProgress } from '@/hooks/useUserProgress';
+import { courseWorldById } from '@/data/courseMap';
+import { getNextRecommendedLesson } from '@/lib/progress/unlock';
 import { getChallengeXp } from '@/lib/progress/xp';
 import type { Lesson } from '@/types/course';
 
@@ -35,6 +38,10 @@ export const LessonExperience = ({ lesson }: { lesson: Lesson }) => {
   const [answer, setAnswer] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [correct, setCorrect] = useState<boolean | null>(null);
+  const [completionTarget, setCompletionTarget] = useState<{
+    href: string;
+    label: string;
+  } | null>(null);
 
   const primaryChallenge = lesson.challenges[0];
   const lessonStatus = snapshot.lessonProgress[lesson.id]?.status ?? 'available';
@@ -59,7 +66,33 @@ export const LessonExperience = ({ lesson }: { lesson: Lesson }) => {
     const success = isAnswerCorrect;
     setCorrect(success);
     setFeedback(success ? primaryChallenge.explanation : primaryChallenge.hints[0] ?? 'Try one smaller step.');
-    await upsertProgress(lesson, success, success ? getChallengeXp(primaryChallenge) : 0);
+    setCompletionTarget(null);
+
+    const updatedSnapshot = await upsertProgress(lesson, success, success ? getChallengeXp(primaryChallenge) : 0);
+
+    if (!success) {
+      return;
+    }
+
+    const nextLesson = getNextRecommendedLesson(updatedSnapshot.lessonProgress, lesson.id);
+
+    if (nextLesson) {
+      const nextWorld = courseWorldById[nextLesson.worldId];
+      const isNewWorld = nextLesson.worldId !== lesson.worldId;
+
+      setCompletionTarget({
+        href: `/worlds/${nextLesson.worldId}/lessons/${nextLesson.id}`,
+        label: isNewWorld
+          ? `Enter ${nextWorld?.title ?? 'next world'}`
+          : `Continue to ${nextLesson.title}`,
+      });
+      return;
+    }
+
+    setCompletionTarget({
+      href: '/worlds',
+      label: 'Open world map',
+    });
   };
 
   return (
@@ -206,6 +239,12 @@ export const LessonExperience = ({ lesson }: { lesson: Lesson }) => {
                 <Alert severity={correct ? 'success' : 'info'} icon={correct ? <CheckCircleRoundedIcon /> : undefined}>
                   {feedback}
                 </Alert>
+              ) : null}
+
+              {correct && completionTarget ? (
+                <Button component={Link} href={completionTarget.href} variant="outlined">
+                  {completionTarget.label}
+                </Button>
               ) : null}
             </CardContent>
           </Card>

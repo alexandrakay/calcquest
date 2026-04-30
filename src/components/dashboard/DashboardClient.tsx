@@ -15,25 +15,17 @@ import { SyncStatusCard } from '@/components/ui/SyncStatusCard';
 import { courseWorlds } from '@/data/courseMap';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProgress } from '@/hooks/useUserProgress';
-import { getWorldStatus } from '@/lib/progress/unlock';
+import { getNextRecommendedLesson, getWorldStatus } from '@/lib/progress/unlock';
 
 export const DashboardClient = () => {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { snapshot, loading: progressLoading, worldProgress, syncMessage, syncState } = useUserProgress();
 
-  const nextLesson = useMemo(() => {
-    for (const world of courseWorlds) {
-      for (const lesson of world.lessons) {
-        const status = snapshot.lessonProgress[lesson.id]?.status;
-        if (!status || status === 'available' || status === 'in-progress') {
-          return lesson;
-        }
-      }
-    }
-
-    return courseWorlds.at(-1)?.lessons.at(-1) ?? null;
-  }, [snapshot.lessonProgress]);
+  const nextLesson = useMemo(
+    () => getNextRecommendedLesson(snapshot.lessonProgress, snapshot.currentLessonId),
+    [snapshot.currentLessonId, snapshot.lessonProgress],
+  );
 
   useEffect(() => {
     if (!authLoading && !user) {

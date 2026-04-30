@@ -60,10 +60,10 @@ export const useUserProgress = () => {
         return;
       }
 
-      setLoading(true);
-
       try {
         const local = readLocalProgress();
+        setSnapshot(local);
+        setLoading(false);
 
         if (!user) {
           debugProgressState('No authenticated user. Falling back to guest/local progress.', {
@@ -74,6 +74,9 @@ export const useUserProgress = () => {
           setSyncMessage('You are in guest mode. Progress is being saved on this device only until you sign in.');
           return;
         }
+
+        setSyncState('local');
+        setSyncMessage('Loading your latest cloud progress in the background.');
 
         const remote = await loadProgressFromFirestore(user.uid);
         const merged = {
@@ -109,7 +112,7 @@ export const useUserProgress = () => {
         debugProgressState('Progress hydration hit an unexpected error and is falling back.', {
           authenticated: Boolean(user),
         });
-        setSnapshot(defaultSnapshot);
+        setSnapshot(readLocalProgress());
         setSyncState(user ? 'local' : 'guest');
         setSyncMessage(
           user
@@ -186,6 +189,8 @@ export const useUserProgress = () => {
         setSyncMessage('Cloud sync is active. Your progress is connected to your signed-in account.');
       }
     }
+
+    return updatedSnapshot;
   };
 
   const worldProgress = useMemo(
