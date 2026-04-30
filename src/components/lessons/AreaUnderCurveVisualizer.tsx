@@ -1,7 +1,7 @@
 'use client';
 
 import ViewAgendaRoundedIcon from '@mui/icons-material/ViewAgendaRounded';
-import { Box, Card, CardContent, Chip, Slider, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, Chip, MenuItem, Slider, Stack, TextField, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';
 
 const GRAPH_WIDTH = 520;
@@ -10,32 +10,52 @@ const DOMAIN_MIN = 0;
 const DOMAIN_MAX = 4;
 const SAMPLE_STEP = 0.04;
 
-const curve = (x: number) => 0.5 * x ** 2 + 1;
 const xToSvg = (x: number) => ((x - DOMAIN_MIN) / (DOMAIN_MAX - DOMAIN_MIN)) * GRAPH_WIDTH;
 const yToSvg = (y: number) => GRAPH_HEIGHT - (y / 10) * GRAPH_HEIGHT;
 
 const rectangleCounts = [2, 4, 8, 16];
 
+const scenarios = {
+  growingCurve: {
+    id: 'growingCurve',
+    label: 'Growing curve',
+    description: 'This curve gets steeper as x increases, so later rectangles contribute more area.',
+    curve: (x: number) => 0.5 * x ** 2 + 1,
+    stroke: '#f9c74f',
+  },
+  waveCurve: {
+    id: 'waveCurve',
+    label: 'Gentle wave',
+    description: 'This wavy curve shows that accumulation can change shape while the rectangles still approximate total area.',
+    curve: (x: number) => 2 + Math.sin(x) + 0.4 * x,
+    stroke: '#82aaff',
+  },
+} as const;
+
+type ScenarioKey = keyof typeof scenarios;
+
 export const AreaUnderCurveVisualizer = () => {
+  const [scenarioKey, setScenarioKey] = useState<ScenarioKey>('growingCurve');
   const [rectangleIndex, setRectangleIndex] = useState(1);
+  const scenario = scenarios[scenarioKey];
   const rectangleCount = rectangleCounts[rectangleIndex] ?? rectangleCounts[1]!;
 
   const curvePoints = useMemo(() => {
     const points: string[] = [];
 
     for (let x = DOMAIN_MIN; x <= DOMAIN_MAX; x += SAMPLE_STEP) {
-      points.push(`${xToSvg(x)},${yToSvg(curve(x))}`);
+      points.push(`${xToSvg(x)},${yToSvg(scenario.curve(x))}`);
     }
 
     return points.join(' ');
-  }, []);
+  }, [scenario]);
 
   const rectangles = useMemo(() => {
     const width = (DOMAIN_MAX - DOMAIN_MIN) / rectangleCount;
 
     return Array.from({ length: rectangleCount }, (_, index) => {
       const x = DOMAIN_MIN + index * width;
-      const height = curve(x + width / 2);
+      const height = scenario.curve(x + width / 2);
       return {
         x,
         width,
@@ -43,7 +63,7 @@ export const AreaUnderCurveVisualizer = () => {
         area: height * width,
       };
     });
-  }, [rectangleCount]);
+  }, [rectangleCount, scenario]);
 
   const estimatedArea = rectangles.reduce((total, rectangle) => total + rectangle.area, 0);
 
@@ -61,6 +81,22 @@ export const AreaUnderCurveVisualizer = () => {
             Watch the area estimate build from rectangles. Integration starts as repeated accumulation, then gets more accurate as the slices get thinner.
           </Typography>
         </div>
+
+        <TextField
+          select
+          label="Curve scenario"
+          value={scenarioKey}
+          onChange={(event) => setScenarioKey(event.target.value as ScenarioKey)}
+          fullWidth
+        >
+          {Object.values(scenarios).map((entry) => (
+            <MenuItem key={entry.id} value={entry.id}>
+              {entry.label}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <Typography color="text.secondary">{scenario.description}</Typography>
 
         <Box
           sx={{
@@ -96,7 +132,7 @@ export const AreaUnderCurveVisualizer = () => {
 
             <polyline
               fill="none"
-              stroke="#f9c74f"
+              stroke={scenario.stroke}
               strokeWidth="4"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -123,6 +159,7 @@ export const AreaUnderCurveVisualizer = () => {
         </Box>
 
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Chip label={scenario.label} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} />
           <Chip label={`interval: [0, 4]`} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} />
           <Chip label={`rectangles: ${rectangleCount}`} sx={{ bgcolor: 'rgba(249,199,79,0.12)' }} />
           <Chip label={`estimated area ≈ ${estimatedArea.toFixed(2)}`} sx={{ bgcolor: 'rgba(90,242,201,0.12)' }} />
