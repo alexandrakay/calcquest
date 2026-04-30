@@ -10,7 +10,14 @@ import {
   type PropsWithChildren,
 } from 'react';
 
-import { getStoredDemoUser, loginWithEmail, loginWithGoogle, logoutUser, registerWithEmail } from '@/firebase/auth';
+import {
+  getStoredDemoUser,
+  loginWithEmail,
+  loginWithGoogle,
+  logoutUser,
+  registerWithEmail,
+  resolveGoogleRedirectSignIn,
+} from '@/firebase/auth';
 import { auth, isFirebaseConfigured } from '@/firebase/client';
 import type { AppUser } from '@/types/user';
 
@@ -19,7 +26,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<'popup' | 'redirect' | 'demo'>;
   logout: () => Promise<void>;
 }
 
@@ -33,6 +40,9 @@ const mapFirebaseUser = (user: User): AppUser => ({
 });
 
 const isDemoUser = (user: AppUser | User): user is AppUser => 'isDemo' in user;
+const isGoogleRedirectResult = (
+  value: AppUser | { user: User; mode: 'popup' } | { user: null; mode: 'redirect' },
+): value is { user: User; mode: 'popup' } | { user: null; mode: 'redirect' } => 'mode' in value;
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<AppUser | null>(null);
@@ -44,6 +54,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       setLoading(false);
       return;
     }
+
+    void resolveGoogleRedirectSignIn().catch(() => {
+      // Redirect errors are surfaced through the normal login UI on the next auth attempt.
+    });
 
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser ? mapFirebaseUser(nextUser) : null);
@@ -67,7 +81,16 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       },
       loginWithGoogle: async () => {
         const nextUser = await loginWithGoogle();
-        setUser(isDemoUser(nextUser) ? nextUser : mapFirebaseUser(nextUser));
+        if ('isDemo' in nextUser) {
+          setUser(nextUser);
+          return 'demo';
+        }
+
+        if (isGoogleRedirectResult(nextUser) && nextUser.mode === 'popup' && nextUser.user) {
+          setUser(mapFirebaseUser(nextUser.user));
+        }
+
+        return isGoogleRedirectResult(nextUser) ? nextUser.mode : 'demo';
       },
       logout: async () => {
         await logoutUser();
