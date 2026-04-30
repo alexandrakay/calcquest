@@ -3,10 +3,13 @@
 import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
+  getRedirectResult,
+  signInWithRedirect,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   updateProfile,
+  type AuthError,
   type UserCredential,
 } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -15,6 +18,49 @@ import { auth, db, isFirebaseConfigured } from '@/firebase/client';
 import type { AppUser } from '@/types/user';
 
 const DEMO_USER_KEY = 'calcquest-demo-user';
+
+export class GoogleSignInError extends Error {
+  code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = 'GoogleSignInError';
+    this.code = code;
+  }
+}
+
+const createGoogleProvider = () => {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return provider;
+};
+
+const getAuthErrorCode = (error: unknown) =>
+  typeof error === 'object' && error !== null && 'code' in error
+    ? String((error as AuthError).code)
+    : undefined;
+
+const getGoogleSignInErrorMessage = (code?: string) => {
+  switch (code) {
+    case 'auth/unauthorized-domain':
+      return 'Google sign-in is blocked because this domain is not authorized in Firebase Authentication.';
+    case 'auth/operation-not-allowed':
+      return 'Google sign-in is not enabled yet in Firebase Authentication.';
+    case 'auth/popup-blocked':
+      return 'Google sign-in popup was blocked by the browser.';
+    case 'auth/popup-closed-by-user':
+      return 'The Google sign-in popup was closed before the sign-in finished.';
+    case 'auth/configuration-not-found':
+      return 'Google sign-in is missing Firebase provider configuration.';
+    default:
+      return 'Unable to sign in with Google right now.';
+  }
+};
+
+const shouldFallbackToRedirect = (code?: string) =>
+  code === 'auth/popup-blocked' ||
+  code === 'auth/cancelled-popup-request' ||
+  code === 'auth/operation-not-supported-in-this-environment';
 
 const createUserDoc = async (credential: UserCredential) => {
   if (!db) {
@@ -90,10 +136,47 @@ export const loginWithGoogle = async () => {
     return demoUser;
   }
 
-  const provider = new GoogleAuthProvider();
-  const credential = await signInWithPopup(auth, provider);
-  await createUserDoc(credential);
-  return credential.user;
+  const provider = createGoogleProvider();
+
+  try {
+    const credential = await signInWithPopup(auth, provider);
+    await createUserDoc(credential);
+    return {
+      user: credential.user,
+      mode: 'popup' as const,
+    };
+  } catch (error) {
+    const code = getAuthErrorCode(error);
+
+    if (shouldFallbackToRedirect(code)) {
+      await signInWithRedirect(auth, provider);
+      return {
+        user: null,
+        mode: 'redirect' as const,
+      };
+    }
+
+    throw new GoogleSignInError(getGoogleSignInErrorMessage(code), code);
+  }
+};
+
+export const resolveGoogleRedirectSignIn = async () => {
+  if (!isFirebaseConfigured || !auth) {
+    return null;
+  }
+
+  try {
+    const credential = await getRedirectResult(auth);
+    if (!credential) {
+      return null;
+    }
+
+    await createUserDoc(credential);
+    return credential.user;
+  } catch (error) {
+    const code = getAuthErrorCode(error);
+    throw new GoogleSignInError(getGoogleSignInErrorMessage(code), code);
+  }
 };
 
 export const logoutUser = async () => {

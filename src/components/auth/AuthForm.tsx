@@ -3,19 +3,25 @@
 import GoogleIcon from '@mui/icons-material/Google';
 import { Alert, Button, Card, CardContent, Stack, TextField, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/hooks/useAuth';
 
 export const AuthForm = () => {
   const router = useRouter();
-  const { login, loginWithGoogle, register } = useAuth();
+  const { login, loginWithGoogle, register, user, loading } = useAuth();
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/dashboard');
+    }
+  }, [loading, router, user]);
 
   const submit = async () => {
     try {
@@ -38,10 +44,20 @@ export const AuthForm = () => {
     try {
       setSubmitting(true);
       setError(null);
-      await loginWithGoogle();
-      router.push('/dashboard');
+      const mode = await loginWithGoogle();
+
+      if (mode === 'popup' || mode === 'demo') {
+        router.push('/dashboard');
+        return;
+      }
+
+      setError('Redirecting to Google sign-in...');
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Unable to sign in with Google.');
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : 'Unable to sign in with Google. Check that Google Auth is enabled in Firebase.',
+      );
     } finally {
       setSubmitting(false);
     }
