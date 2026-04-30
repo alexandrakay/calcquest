@@ -23,6 +23,7 @@ import { useMemo, useState } from 'react';
 import { CompositionPipelineBuilder } from '@/components/lessons/CompositionPipelineBuilder';
 import { LimitApproachVisualizer } from '@/components/lessons/LimitApproachVisualizer';
 import { TangentLineExplorer } from '@/components/lessons/TangentLineExplorer';
+import { AreaUnderCurveVisualizer } from '@/components/lessons/AreaUnderCurveVisualizer';
 import { XpBadge } from '@/components/game/XpBadge';
 import { SyncStatusCard } from '@/components/ui/SyncStatusCard';
 import { useUserProgress } from '@/hooks/useUserProgress';
@@ -138,6 +139,8 @@ export const LessonExperience = ({ lesson }: { lesson: Lesson }) => {
           {lesson.id === 'limits-intuition' ? <LimitApproachVisualizer /> : null}
 
           {lesson.id === 'derivative-slope' ? <TangentLineExplorer /> : null}
+
+          {lesson.id === 'integral-area' ? <AreaUnderCurveVisualizer /> : null}
         </Stack>
       </Grid>
 
