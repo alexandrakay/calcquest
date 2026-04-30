@@ -26,12 +26,16 @@ const readLocalProgress = (): ProgressSnapshot => {
     return defaultSnapshot;
   }
 
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return defaultSnapshot;
+    }
+
+    return { ...defaultSnapshot, ...(JSON.parse(raw) as ProgressSnapshot) };
+  } catch {
     return defaultSnapshot;
   }
-
-  return { ...defaultSnapshot, ...(JSON.parse(raw) as ProgressSnapshot) };
 };
 
 export const useUserProgress = () => {
@@ -43,40 +47,50 @@ export const useUserProgress = () => {
 
   useEffect(() => {
     const sync = async () => {
-      const local = readLocalProgress();
+      try {
+        const local = readLocalProgress();
 
-      if (!user) {
-        setSnapshot(local);
-        setSyncState('guest');
-        setSyncMessage('You are in guest mode. Progress is being saved on this device only until you sign in.');
+        if (!user) {
+          setSnapshot(local);
+          setSyncState('guest');
+          setSyncMessage('You are in guest mode. Progress is being saved on this device only until you sign in.');
+          return;
+        }
+
+        const remote = await loadProgressFromFirestore(user.uid);
+        const merged = {
+          ...local,
+          ...remote.data,
+          lessonProgress: {
+            ...local.lessonProgress,
+            ...remote.data.lessonProgress,
+          },
+        };
+
+        if (remote.errorCode === 'permission-denied') {
+          setSyncState('local');
+          setSyncMessage('Cloud sync is unavailable because Firestore permissions are not configured yet. Progress is being saved locally for now.');
+        } else if (remote.errorCode) {
+          setSyncState('local');
+          setSyncMessage('Cloud sync is temporarily unavailable. Progress is still being saved locally on this device.');
+        } else {
+          setSyncState('cloud');
+          setSyncMessage('Cloud sync is active. Your progress is connected to your signed-in account.');
+        }
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        setSnapshot(merged);
+      } catch {
+        setSnapshot(defaultSnapshot);
+        setSyncState(user ? 'local' : 'guest');
+        setSyncMessage(
+          user
+            ? 'We hit a progress sync problem, so CalcQuest is falling back to a safe local state for now.'
+            : 'Guest mode is active. Progress is being saved on this device only.',
+        );
+      } finally {
         setLoading(false);
-        return;
       }
-
-      const remote = await loadProgressFromFirestore(user.uid);
-      const merged = {
-        ...local,
-        ...remote.data,
-        lessonProgress: {
-          ...local.lessonProgress,
-          ...remote.data.lessonProgress,
-        },
-      };
-
-      if (remote.errorCode === 'permission-denied') {
-        setSyncState('local');
-        setSyncMessage('Cloud sync is unavailable because Firestore permissions are not configured yet. Progress is being saved locally for now.');
-      } else if (remote.errorCode) {
-        setSyncState('local');
-        setSyncMessage('Cloud sync is temporarily unavailable. Progress is still being saved locally on this device.');
-      } else {
-        setSyncState('cloud');
-        setSyncMessage('Cloud sync is active. Your progress is connected to your signed-in account.');
-      }
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-      setSnapshot(merged);
-      setLoading(false);
     };
 
     void sync();
