@@ -21,8 +21,11 @@ import {
 } from '@mui/material';
 import { useMemo, useState } from 'react';
 
+import { AIGeneratedProblemCard } from '@/components/ai/AIGeneratedProblemCard';
+import { GenerateProblemButton } from '@/components/ai/GenerateProblemButton';
 import { courseWorlds } from '@/data/courseMap';
 import { XpBadge } from '@/components/game/XpBadge';
+import type { AIGeneratedProblem } from '@/types/ai';
 import type { Challenge, CourseWorld, Lesson } from '@/types/course';
 
 interface PracticeChallenge {
@@ -52,6 +55,8 @@ export const PracticeArenaClient = () => {
   const [correct, setCorrect] = useState<boolean | null>(null);
   const [attempts, setAttempts] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [generatedProblem, setGeneratedProblem] = useState<AIGeneratedProblem | null>(null);
+  const [aiError, setAiError] = useState('');
 
   const practicePool = useMemo(() => buildPracticePool(selectedWorldId), [selectedWorldId]);
   const currentEntry = practicePool[challengeIndex % Math.max(practicePool.length, 1)];
@@ -126,6 +131,8 @@ export const PracticeArenaClient = () => {
               setCorrect(null);
               setAttempts(0);
               setCorrectAnswers(0);
+              setGeneratedProblem(null);
+              setAiError('');
             }}
             fullWidth
           >
@@ -136,8 +143,26 @@ export const PracticeArenaClient = () => {
               </MenuItem>
             ))}
           </TextField>
+
+          <GenerateProblemButton
+            worldId={selectedWorldId === 'all' ? 'function-foundations' : selectedWorldId}
+            topic={
+              selectedWorldId === 'all'
+                ? 'Mixed calculus review'
+                : courseWorlds.find((world) => world.id === selectedWorldId)?.title ?? 'CalcQuest practice'
+            }
+            onGenerated={(problem) => {
+              setGeneratedProblem(problem);
+              setAiError('');
+            }}
+            onError={setAiError}
+          />
+
+          {aiError ? <Alert severity="warning">{aiError}</Alert> : null}
         </CardContent>
       </Card>
+
+      {generatedProblem ? <AIGeneratedProblemCard problem={generatedProblem} /> : null}
 
       {currentEntry ? (
         <Card>
