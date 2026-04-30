@@ -43,7 +43,7 @@ export default function HomePage() {
             </Typography>
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 4 }}>
-              <Button component={Link} href="/login" size="large" variant="contained" endIcon={<ArrowForwardRoundedIcon />}>
+              <Button component={Link} href="/onboarding" size="large" variant="contained" endIcon={<ArrowForwardRoundedIcon />}>
                 Start the quest
               </Button>
               <Button component={Link} href="/worlds" size="large" variant="outlined">
